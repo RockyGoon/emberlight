@@ -44,7 +44,8 @@ function runShot(name) {
   const scene = stageShot(name, world);
   let painted = 0;
   function paint() {
-    renderer.draw(world.state, scene.screen, { best: scene.best, muted: false, autoFire: false });
+    // The end scene always set a new best (its best is its own score), so the panel shows it.
+    renderer.draw(world.state, scene.screen, { best: scene.best, muted: false, autoFire: false, newBest: scene.screen === SCREEN_OVER && scene.best > 0 });
     painted += 1;
     if (painted < 2) requestAnimationFrame(paint);
     else window.__shotReady = true;
@@ -57,6 +58,7 @@ function runGame() {
   const audio = createAudio();
   let screen = SCREEN_TITLE;
   let best = readBest();
+  let newBest = false;
   let accumulator = 0;
   let last = performance.now();
 
@@ -77,6 +79,7 @@ function runGame() {
     world.reset();
     world.startWave(1);
     accumulator = 0;
+    newBest = false;
     screen = SCREEN_PLAY;
     announce('Playing. Three hearts. Wave 1.');
   }
@@ -86,6 +89,7 @@ function runGame() {
     audio.gameOver();
     if (world.state.score > best) {
       best = world.state.score;
+      newBest = true;
       saveBest(best);
     }
     announce(`Game over. Score ${world.state.score}. Best ${best}.`);
@@ -199,7 +203,7 @@ function runGame() {
     } else {
       accumulator = 0;
     }
-    renderer.draw(world.state, screen, { best, muted: audio.isMuted(), autoFire: world.state.player.autoFire });
+    renderer.draw(world.state, screen, { best, muted: audio.isMuted(), autoFire: world.state.player.autoFire, newBest });
   }
 
   // Leaving the tab pauses a running game rather than letting shadows close in unseen.

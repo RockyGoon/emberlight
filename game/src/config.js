@@ -21,7 +21,7 @@ export const PLAYER = {
 };
 
 /** How many of each thing can exist at once; the pools are allocated once, at boot. */
-export const POOL = { bullets: 160, enemies: 96, orbs: 96, shards: 200, particles: 360, texts: 32 };
+export const POOL = { bullets: 160, enemies: 96, orbs: 96, shards: 200, particles: 480, texts: 32 };
 
 export const BULLET = { life: 1.6 };
 
@@ -50,16 +50,17 @@ export const WAVE = {
   firstDelay: 0.9,
 };
 
-/** The upgrades offered between waves: name, what it does, how often it can stack. */
+/** The upgrades offered between waves: name, what it does, how often it can stack, and the
+ *  glyph the upgrade card draws for it (see drawUpgradeIcon in render.js). */
 export const UPGRADES = [
-  { id: 'spread', name: 'Twin Flames', desc: '+1 bolt of light per shot', max: 2 },
-  { id: 'rapid', name: 'Quickening', desc: 'Shoot 18% faster', max: 4 },
-  { id: 'pierce', name: 'Piercing Light', desc: 'Bolts pierce +1 shadow', max: 3 },
-  { id: 'damage', name: 'Burn Brighter', desc: '+1 bolt damage', max: 4 },
-  { id: 'speed', name: 'Swift Ember', desc: 'Move 12% faster', max: 3 },
-  { id: 'magnet', name: 'Shard Magnet', desc: '+70% shard pickup radius', max: 3 },
-  { id: 'shield', name: 'Ember Ward', desc: '+1 max heart, and heal 1', max: 3 },
-  { id: 'heal', name: 'Rekindle', desc: 'Restore 2 hearts', max: 99 },
+  { id: 'spread', name: 'Twin Flames', desc: '+1 bolt of light per shot', max: 2, icon: 'spread' },
+  { id: 'rapid', name: 'Quickening', desc: 'Shoot 18% faster', max: 4, icon: 'rapid' },
+  { id: 'pierce', name: 'Piercing Light', desc: 'Bolts pierce +1 shadow', max: 3, icon: 'pierce' },
+  { id: 'damage', name: 'Burn Brighter', desc: '+1 bolt damage', max: 4, icon: 'damage' },
+  { id: 'speed', name: 'Swift Ember', desc: 'Move 12% faster', max: 3, icon: 'speed' },
+  { id: 'magnet', name: 'Shard Magnet', desc: '+70% shard pickup radius', max: 3, icon: 'magnet' },
+  { id: 'shield', name: 'Ember Ward', desc: '+1 max heart, and heal 1', max: 3, icon: 'shield' },
+  { id: 'heal', name: 'Rekindle', desc: 'Restore 2 hearts', max: 99, icon: 'heal' },
 ];
 
 export const PALETTE = {

@@ -6,11 +6,11 @@
 // shows the fight at its fullest. The end scene's pilot only ever retreats, so it survives a
 // wave and is then cornered and overwhelmed, as a player who only ever retreats is.
 import { FIELD, STEP } from './config.js';
-import { EVENT_OVER } from './world.js';
+import { EVENT_OVER, KIND_BOSS } from './world.js';
 import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE } from './render.js';
 
 const START_SECONDS = 5;
-const PLAY_SECONDS = 36;
+const PLAY_SECONDS = 90;
 const END_LIMIT_SECONDS = 600;
 const FLASH_SETTLE_STEPS = 18;
 
@@ -106,19 +106,31 @@ function autopilot(state, mode) {
   return { moveX, moveY, aimX, aimY, firing };
 }
 
-/** How busy a frame looks: shadows on screen count most; a frame with fewer than three is never the busiest. */
+/**
+ * How busy a frame looks: shadows on screen count most, and a boss on screen counts most of
+ * all — the play shot should catch the fight at its fullest, ideally the void wisp itself.
+ * A frame with fewer than three shadows is never the busiest.
+ */
 function actionScore(state) {
   let onScreen = 0;
+  let boss = 0;
   for (let index = 0; index < state.enemies.length; index += 1) {
     const enemy = state.enemies[index];
-    if (enemy.active && enemy.x > 0 && enemy.x < FIELD.width && enemy.y > 0 && enemy.y < FIELD.height) onScreen += 1;
+    if (enemy.active && enemy.x > 0 && enemy.x < FIELD.width && enemy.y > 0 && enemy.y < FIELD.height) {
+      onScreen += 1;
+      if (enemy.kind === KIND_BOSS) boss += 1;
+    }
   }
   if (onScreen < 3) return -1;
   let bolts = 0;
   for (let index = 0; index < state.bullets.length; index += 1) if (state.bullets[index].active) bolts += 1;
   let shards = 0;
   for (let index = 0; index < state.shards.length; index += 1) if (state.shards[index].active) shards += 1;
-  return onScreen * 10 + bolts + Math.floor(shards / 3);
+  let orbs = 0;
+  for (let index = 0; index < state.orbs.length; index += 1) if (state.orbs[index].active) orbs += 1;
+  let sparks = 0;
+  for (let index = 0; index < state.particles.length; index += 1) if (state.particles[index].active) sparks += 1;
+  return boss * 150 + onScreen * 10 + bolts + orbs * 2 + Math.floor(shards / 3) + Math.floor(sparks / 6);
 }
 
 /** One good-pilot step, taking an upgrade the moment one is offered. */
@@ -144,9 +156,19 @@ export function stageShot(name, world) {
   world.reset();
   world.startWave(1);
   if (name === 'upgrade') {
-    for (let index = 0; index < 150 / STEP; index += 1) {
+    // Take the first blessing at once and show the second: a later wave, a fuller score,
+    // and a card the ember has already taken once, so the shot shows the choice at its richest.
+    let upgradesTaken = 0;
+    for (let index = 0; index < 300 / STEP; index += 1) {
       const events = world.step(STEP, autopilot(state, 'good'));
-      if (state.phase === 'upgrade') return { screen: SCREEN_UPGRADE, best: state.score };
+      if (state.phase === 'upgrade') {
+        if (upgradesTaken === 0) {
+          world.applyUpgrade(state.choices[0].id);
+          upgradesTaken += 1;
+        } else {
+          return { screen: SCREEN_UPGRADE, best: state.score };
+        }
+      }
       if (events & EVENT_OVER) break;
     }
     return { screen: state.phase === 'upgrade' ? SCREEN_UPGRADE : SCREEN_PLAY, best: state.score };

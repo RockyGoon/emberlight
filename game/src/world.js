@@ -64,6 +64,7 @@ export function createWorld(seed) {
     wave: 0, phase: 'fighting', spawnQueue: [], spawnTimer: 0, spawnInterval: WAVE.spawnInterval,
     choices: [], upgradeCounts: {},
     shake: 0, flash: 0, elapsed: 0, demoAngle: 0,
+    banner: { text: '', life: 0 },
   };
 
   function free(pool) {
@@ -141,6 +142,8 @@ export function createWorld(seed) {
     state.flash = 0;
     state.elapsed = 0;
     state.demoAngle = 0;
+    state.banner.text = '';
+    state.banner.life = 0;
   }
 
   /** The list of shadows for a wave: chasers always, then shooters, splitters and tanks unlock. */
@@ -175,6 +178,9 @@ export function createWorld(seed) {
     state.spawnQueue = waveQueue(wave);
     state.spawnInterval = Math.max(WAVE.minInterval, WAVE.spawnInterval * WAVE.intervalScale ** (wave - 1));
     state.spawnTimer = WAVE.firstDelay;
+    // A big fading banner names the wave as it starts, so the player always knows the stakes.
+    state.banner.text = wave % WAVE.bossEvery === 0 ? 'THE VOID WISP WAKES' : `WAVE ${wave}`;
+    state.banner.life = 1.8;
     if (wave % WAVE.bossEvery === 0) return EVENT_BOSS;
     return 0;
   }
@@ -282,6 +288,8 @@ export function createWorld(seed) {
   function fireBolts() {
     const count = 1 + player.spread;
     const baseAngle = Math.atan2(player.aimY - player.y, player.aimX - player.x);
+    // A muzzle flash: a few bright sparks at the ember's edge, so every shot is seen as well as heard.
+    burst(player.x + Math.cos(baseAngle) * (player.radius + 4), player.y + Math.sin(baseAngle) * (player.radius + 4), '#ffd54f', 3, 70, 2);
     for (let index = 0; index < count; index += 1) {
       const bullet = free(bullets);
       if (bullet === null) return;
@@ -592,26 +600,57 @@ export function createWorld(seed) {
     }
     if (state.shake > 0) state.shake = Math.max(0, state.shake - 42 * dt);
     if (state.flash > 0) state.flash = Math.max(0, state.flash - 2.4 * dt);
+    if (state.banner.life > 0) state.banner.life = Math.max(0, state.banner.life - dt);
   }
 
   /**
-   * The title screen's backdrop: the ember drifts in a slow circle while a few shadows wander
-   * toward it, nothing hurts anything, nothing scores. The same seed always gives the same scene.
+   * A shadow that wanders in from inside the arena, for the title screen's backdrop: unlike
+   * spawnEnemy it never starts half off the edge, so the title frame shows whole shadows.
+   */
+  function spawnDemoEnemy(kind) {
+    const enemy = free(enemies);
+    if (enemy === null) return;
+    const spec = KIND_SPEC[kind];
+    enemy.active = true;
+    enemy.kind = kind;
+    enemy.x = 70 + random() * (FIELD.width - 140);
+    enemy.y = 70 + random() * (FIELD.height - 140);
+    enemy.vx = 0;
+    enemy.vy = 0;
+    enemy.radius = spec.radius;
+    enemy.hp = spec.hp;
+    enemy.maxHp = spec.hp;
+    enemy.speed = spec.speed * (0.9 + random() * 0.2);
+    enemy.fireTimer = 1 + random() * 1.5;
+    enemy.angle = random() * TWO_PI;
+    burst(enemy.x, enemy.y, spec.color, 6, 90, 3);
+  }
+
+  /**
+   * The title screen's backdrop: the ember drifts in a slow, tight circle high in the arena,
+   * clear of the title text, while a crowd of shadows wanders toward it — nothing hurts
+   * anything, nothing scores. The same seed always gives the same scene.
    */
   function demoStep(dt) {
     state.elapsed += dt;
     state.demoAngle += dt * 0.45;
-    player.x = FIELD.width / 2 + Math.cos(state.demoAngle) * 190;
-    player.y = FIELD.height / 2 + Math.sin(state.demoAngle) * 110;
+    // A wide orbit that sweeps the whole arena: the ember swings out from behind the title
+    // text into the open field and back, and the shadows chasing it spread across the screen
+    // instead of bunching up behind the text.
+    player.x = FIELD.width / 2 + Math.cos(state.demoAngle) * 380;
+    player.y = FIELD.height / 2 + Math.sin(state.demoAngle) * 240;
     player.aimX = player.x + Math.cos(state.demoAngle + 1.2) * 120;
     player.aimY = player.y + Math.sin(state.demoAngle + 1.2) * 120;
-    if (countActive(enemies) < 7 && random() < dt * 0.7) {
-      spawnEnemy(pick(random, [KIND_CHASER, KIND_SHOOTER, KIND_SPLITTER]));
+    if (countActive(enemies) < 12 && random() < dt * 1.8) {
+      spawnDemoEnemy(pick(random, [KIND_CHASER, KIND_SHOOTER, KIND_SPLITTER, KIND_TANK]));
     }
     for (let index = 0; index < enemies.length; index += 1) {
       const enemy = enemies[index];
       if (!enemy.active) continue;
       moveEnemy(enemy, dt, player.x, player.y, enemy.speed * 0.55);
+      // Keep the wanderers on screen: a shadow half off the arena's edge reads as a bug.
+      enemy.x = Math.min(FIELD.width - enemy.radius - 6, Math.max(enemy.radius + 6, enemy.x));
+      enemy.y = Math.min(FIELD.height - enemy.radius - 6, Math.max(enemy.radius + 6, enemy.y));
     }
     updateAmbient(dt);
   }

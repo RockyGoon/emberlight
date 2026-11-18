@@ -260,6 +260,18 @@ export function createRenderer(canvas) {
     if (player.invulnerable > 0 && Math.floor(player.invulnerable * 10) % 2 === 0) return;
     const flicker = 1 + 0.12 * Math.sin(state.elapsed * 9);
     const radius = player.radius * flicker;
+    // The ember is a light source: a warm halo spilling onto the dark arena around it.
+    context.save();
+    context.globalCompositeOperation = 'lighter';
+    const halo = context.createRadialGradient(player.x, player.y, radius * 0.5, player.x, player.y, radius * 7);
+    halo.addColorStop(0, 'rgba(255, 201, 77, 0.20)');
+    halo.addColorStop(0.55, 'rgba(255, 150, 60, 0.07)');
+    halo.addColorStop(1, 'rgba(255, 150, 60, 0)');
+    context.fillStyle = halo;
+    context.beginPath();
+    context.arc(player.x, player.y, radius * 7, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
     context.save();
     // Aim tick toward the mouse.
     const aimAngle = Math.atan2(player.aimY - player.y, player.aimX - player.x);
@@ -348,6 +360,26 @@ export function createRenderer(canvas) {
     text(`◆ ${state.shardsCollected}`, FIELD.width - 24, 76, 22, PALETTE.shard, 'right', '700');
     const hints = [`M ${ui.muted ? 'unmute' : 'mute'}`, `F auto-fire ${player.autoFire ? 'ON' : 'off'}`, 'P pause'];
     text(hints.join('   ·   '), FIELD.width / 2, FIELD.height - 16, 16, PALETTE.muted, 'center');
+    // The void wisp's health, wide and centred, while it lives: the boss fight reads at a glance.
+    const boss = bossEnemy(state);
+    if (boss !== null) {
+      const barWidth = 360;
+      const ratio = Math.max(0, boss.hp / boss.maxHp);
+      text('VOID WISP', FIELD.width / 2, 92, 16, PALETTE.boss, 'center', '700');
+      context.fillStyle = '#1c1030';
+      context.fillRect((FIELD.width - barWidth) / 2, 100, barWidth, 10);
+      context.fillStyle = PALETTE.boss;
+      context.fillRect((FIELD.width - barWidth) / 2, 100, barWidth * ratio, 10);
+    }
+  }
+
+  /** The live boss, or null when no void wisp is on the field. */
+  function bossEnemy(state) {
+    for (let index = 0; index < state.enemies.length; index += 1) {
+      const enemy = state.enemies[index];
+      if (enemy.active && enemy.kind === KIND_BOSS) return enemy;
+    }
+    return null;
   }
 
   function countEnemies(state) {
@@ -356,10 +388,11 @@ export function createRenderer(canvas) {
     return count;
   }
 
-  function drawPanel(title, lines, prompt) {
+  function drawPanel(title, lines, prompt, accent) {
     const width = 640;
     const lineHeight = 32;
-    const height = 120 + lines.length * lineHeight + 64;
+    const accentHeight = accent ? 40 : 0;
+    const height = 120 + lines.length * lineHeight + accentHeight + 64;
     const x = (FIELD.width - width) / 2;
     const y = (FIELD.height - height) / 2;
     context.fillStyle = PALETTE.panel;
@@ -372,10 +405,15 @@ export function createRenderer(canvas) {
     for (let index = 0; index < lines.length; index += 1) {
       text(lines[index], FIELD.width / 2, y + 120 + index * lineHeight, 21, PALETTE.muted, 'center');
     }
+    if (accent) glowText(accent, FIELD.width / 2, y + 120 + lines.length * lineHeight + 8, 26, PALETTE.shard, 'center', 14);
     text(prompt, FIELD.width / 2, y + height - 30, 22, PALETTE.player, 'center', '700');
   }
 
   function drawTitle(state, ui) {
+    // A dark scrim behind the text block: the demo shadows drift behind it and the words stay readable.
+    context.fillStyle = 'rgba(7, 7, 15, 0.72)';
+    roundRect(context, 190, 150, FIELD.width - 380, 380, 20);
+    context.fill();
     const pulse = 0.75 + 0.25 * Math.sin(state.elapsed * 2);
     glowText('EMBERLIGHT', FIELD.width / 2, 218, 84, '#ffc94d', 'center', 34 * pulse);
     text('Keeper of the Last Ember', FIELD.width / 2, 262, 28, PALETTE.text, 'center');
@@ -387,6 +425,96 @@ export function createRenderer(canvas) {
     context.globalAlpha = blink;
     text('Click or press Enter to start', FIELD.width / 2, 500, 26, PALETTE.player, 'center', '700');
     context.globalAlpha = 1;
+  }
+
+  /** One small glyph per blessing, drawn in the card's gold: a shape the eye reads before the words. */
+  function drawUpgradeIcon(icon, cx, cy) {
+    context.save();
+    context.strokeStyle = PALETTE.player;
+    context.fillStyle = PALETTE.player;
+    context.lineWidth = 3;
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
+    if (icon === 'spread') {
+      // Three bolts fanning out.
+      for (const angle of [-0.5, 0, 0.5]) {
+        context.beginPath();
+        context.arc(cx + Math.sin(angle) * 16, cy - Math.cos(angle) * 14, 5, 0, Math.PI * 2);
+        context.fill();
+      }
+    } else if (icon === 'rapid') {
+      // A lightning bolt.
+      context.beginPath();
+      context.moveTo(cx + 4, cy - 16);
+      context.lineTo(cx - 8, cy + 2);
+      context.lineTo(cx, cy + 2);
+      context.lineTo(cx - 4, cy + 16);
+      context.lineTo(cx + 8, cy - 2);
+      context.lineTo(cx, cy - 2);
+      context.closePath();
+      context.fill();
+    } else if (icon === 'pierce') {
+      // An arrow through a ring.
+      context.beginPath();
+      context.arc(cx, cy, 11, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(cx - 18, cy);
+      context.lineTo(cx + 14, cy);
+      context.moveTo(cx + 14, cy);
+      context.lineTo(cx + 6, cy - 5);
+      context.moveTo(cx + 14, cy);
+      context.lineTo(cx + 6, cy + 5);
+      context.stroke();
+    } else if (icon === 'damage') {
+      // A flame diamond.
+      context.beginPath();
+      context.moveTo(cx, cy - 15);
+      context.lineTo(cx + 11, cy);
+      context.lineTo(cx, cy + 15);
+      context.lineTo(cx - 11, cy);
+      context.closePath();
+      context.fill();
+    } else if (icon === 'speed') {
+      // Three chevrons, rushing right.
+      for (let chevron = 0; chevron < 3; chevron += 1) {
+        const x = cx - 14 + chevron * 11;
+        context.beginPath();
+        context.moveTo(x, cy - 10);
+        context.lineTo(x + 9, cy);
+        context.lineTo(x, cy + 10);
+        context.stroke();
+      }
+    } else if (icon === 'magnet') {
+      // A horseshoe, open at the bottom.
+      context.beginPath();
+      context.arc(cx, cy - 2, 12, Math.PI * 0.85, Math.PI * 2.15);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(cx - 12, cy + 6);
+      context.lineTo(cx - 12, cy + 14);
+      context.moveTo(cx + 12, cy + 6);
+      context.lineTo(cx + 12, cy + 14);
+      context.stroke();
+    } else if (icon === 'shield') {
+      // A heart: the ward guards the ember's hearts.
+      context.beginPath();
+      context.moveTo(cx, cy + 12);
+      context.bezierCurveTo(cx - 14, cy + 2, cx - 13, cy - 10, cx - 5, cy - 10);
+      context.bezierCurveTo(cx - 1, cy - 10, cx, cy - 7, cx, cy - 5);
+      context.bezierCurveTo(cx, cy - 7, cx + 1, cy - 10, cx + 5, cy - 10);
+      context.bezierCurveTo(cx + 13, cy - 10, cx + 14, cy + 2, cx, cy + 12);
+      context.stroke();
+    } else {
+      // Rekindle: a plus, the ember relit.
+      context.beginPath();
+      context.moveTo(cx, cy - 13);
+      context.lineTo(cx, cy + 13);
+      context.moveTo(cx - 13, cy);
+      context.lineTo(cx + 13, cy);
+      context.stroke();
+    }
+    context.restore();
   }
 
   function drawUpgrade(state) {
@@ -411,13 +539,22 @@ export function createRenderer(canvas) {
       roundRect(context, x, y, cardWidth, cardHeight, 14);
       context.fill();
       context.stroke();
-      text(`[${index + 1}]`, x + cardWidth / 2, y + 44, 20, PALETTE.muted, 'center');
-      glowText(choice.name, x + cardWidth / 2, y + 92, 27, PALETTE.player, 'center', 12);
-      wrapText(choice.desc, x + cardWidth / 2, y + 132, 19, PALETTE.text, cardWidth - 36);
+      text(`[${index + 1}]`, x + cardWidth / 2, y + 34, 20, PALETTE.muted, 'center');
+      drawUpgradeIcon(choice.icon || 'damage', x + cardWidth / 2, y + 68);
+      glowText(choice.name, x + cardWidth / 2, y + 112, 27, PALETTE.player, 'center', 12);
+      wrapText(choice.desc, x + cardWidth / 2, y + 150, 19, PALETTE.text, cardWidth - 36);
       text(taken > 0 ? `Taken ${taken}×` : 'New blessing', x + cardWidth / 2, y + cardHeight - 22, 17, PALETTE.muted, 'center');
       x += cardWidth + gap;
     }
-    text('Click a card, or press 1, 2 or 3', FIELD.width / 2, y + cardHeight + 52, 22, PALETTE.player, 'center', '700');
+    // A dark pill behind the prompt: the ember can be standing right under the cards when
+    // the wave clears, and the words must stay readable over its glow.
+    const prompt = 'Click a card, or press 1, 2 or 3';
+    context.font = `700 22px ${FONT}`;
+    const promptWidth = context.measureText(prompt).width;
+    context.fillStyle = 'rgba(7, 7, 15, 0.72)';
+    roundRect(context, FIELD.width / 2 - promptWidth / 2 - 18, y + cardHeight + 30, promptWidth + 36, 40, 12);
+    context.fill();
+    text(prompt, FIELD.width / 2, y + cardHeight + 52, 22, PALETTE.player, 'center', '700');
   }
 
   /** A short description, wrapped to at most two centred lines inside the card. */
@@ -465,10 +602,22 @@ export function createRenderer(canvas) {
       return;
     }
     drawHud(state, ui);
+    // The wave banner, big and fading, while a wave is fresh.
+    if (screen === SCREEN_PLAY && state.banner.life > 0) {
+      const banner = state.banner;
+      // Fade in over the first blink, hold, then fade out over the last 0.6 s.
+      const alpha = Math.min(1, banner.life / 0.6, (1.8 - banner.life) / 0.15 + 0.2);
+      context.globalAlpha = Math.max(0, Math.min(1, alpha));
+      glowText(banner.text, FIELD.width / 2, 170, 46, PALETTE.player, 'center', 22);
+      context.globalAlpha = 1;
+    }
     if (screen === SCREEN_UPGRADE) drawUpgrade(state);
     else if (screen === SCREEN_PAUSED) drawPanel('Paused', ['The shadows wait for you.'], 'Press P to resume');
     else if (screen === SCREEN_OVER) {
-      drawPanel('The Ember Fades', [`Score  ${state.score}`, `Wave reached  ${state.wave}`, `Best  ${ui.best}`], 'Press R or click to play again');
+      // Dim the field behind the panel: the results, not the wreckage, hold the eye.
+      context.fillStyle = 'rgba(5, 5, 14, 0.55)';
+      context.fillRect(0, 0, FIELD.width, FIELD.height);
+      drawPanel('The Ember Fades', [`Score  ${state.score}`, `Wave reached  ${state.wave}`, `Best  ${ui.best}`], 'Press R or click to play again', ui.newBest ? '★ NEW BEST! ★' : null);
     }
   }
 
