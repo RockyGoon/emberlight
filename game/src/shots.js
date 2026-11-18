@@ -143,11 +143,85 @@ function playStep(world, state) {
 }
 
 /**
+ * A boss-fight scene for wave 10 (Tidekeeper, realm II) or wave 15 (Ashen Sovereign).
+ * The autopilot cannot be trusted to survive nine or fourteen waves on its own, so the
+ * scene jump-starts with a veteran build — the upgrades and relics a run that reached
+ * this boss would carry — and then the fight itself is played live under the real rules,
+ * with the good pilot at the helm. First pass finds the busiest moment while the boss
+ * lives; second pass replays to it exactly (the build is set identically both times).
+ */
+function veteranBuild(world, targetWave) {
+  const state = world.state;
+  const player = state.player;
+  player.spread = 1;
+  player.damage = 3;
+  player.fireInterval = 0.22;
+  player.pierce = 1;
+  player.orbit = 2;
+  player.novaLevel = 2;
+  player.novaTimer = 3;
+  player.critChance = 0.4;
+  player.maxHp = 5;
+  player.hp = 5;
+  player.speed = 310;
+  player.magnetRadius = 220;
+  player.shardValue = 10;
+  state.upgradeCounts = { spread: 1, damage: 2, rapid: 2, pierce: 1, orbit: 2, nova: 2, crit: 2, shield: 2, magnet: 1, greed: 1 };
+  state.relics = targetWave >= 15 ? ['phoenix', 'lantern', 'storm', 'frost'] : ['phoenix', 'lantern'];
+}
+
+function stageBossShot(targetWave, world) {
+  const state = world.state;
+  const FIGHT_SECONDS = 75;
+  let bestStep = 0;
+  let bestScore = -1;
+  let bossSeen = false;
+  for (let pass = 0; pass < 2; pass += 1) {
+    world.replay();
+    veteranBuild(world, targetWave);
+    world.startWave(targetWave);
+    if (pass === 0) {
+      for (let index = 0; index < FIGHT_SECONDS / STEP; index += 1) {
+        const events = playStep(world, state);
+        if (events & EVENT_OVER) break;
+        const bossAlive = state.enemies.some((enemy) => enemy.active && (enemy.kind === 5 || enemy.kind === 6 || enemy.kind === 7));
+        if (bossAlive) {
+          bossSeen = true;
+          if (index % 6 === 0) {
+            // Busiest frame wins, but a boss glued to the arena's edge reads as a bug:
+            // a boss near the centre of the field earns a large bonus.
+            let score = actionScore(state);
+            const boss = state.enemies.find((enemy) => enemy.active && (enemy.kind === 5 || enemy.kind === 6 || enemy.kind === 7));
+            if (boss) {
+              const centreDist = Math.hypot(boss.x - FIELD.width / 2, boss.y - FIELD.height / 2);
+              if (centreDist < 280) score += 400;
+            }
+            if (score > bestScore) {
+              bestScore = score;
+              bestStep = index;
+            }
+          }
+        } else if (bossSeen) {
+          break;
+        }
+      }
+    } else {
+      for (let index = 0; index <= bestStep; index += 1) {
+        const events = playStep(world, state);
+        if (events & EVENT_OVER) break;
+      }
+    }
+  }
+  return { screen: state.player.dead ? SCREEN_OVER : SCREEN_PLAY, best: state.score, bossSeen };
+}
+
+/**
  * Set `world` to the named scene (start, play, upgrade or end; any other name is start) and
  * return the screen to draw over it and the best score to show.
  */
 export function stageShot(name, world) {
   const state = world.state;
+  if (name === 'boss2' || name === 'boss3') return stageBossShot(name === 'boss2' ? 10 : 15, world);
   if (name !== 'play' && name !== 'upgrade' && name !== 'end') {
     world.reset();
     for (let index = 0; index < START_SECONDS / STEP; index += 1) world.demoStep(STEP);

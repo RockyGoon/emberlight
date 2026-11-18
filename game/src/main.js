@@ -105,7 +105,7 @@ function runGame() {
     }
     if (events & EVENT_BOSS) {
       audio.boss();
-      announce('A void wisp wakes.');
+      announce(world.state.banner.text || 'A boss wakes.');
     }
     if (events & EVENT_WAVE_CLEAR) {
       audio.waveClear();

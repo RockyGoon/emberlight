@@ -36,7 +36,39 @@ export const ENEMY = {
   mini: { radius: 9, hp: 1, speed: 155, score: 10, shards: 1, color: '#f06292' },
   tank: { radius: 25, hp: 9, speed: 48, score: 30, shards: 3, color: '#ff8a65' },
   boss: { radius: 44, hp: 70, speed: 55, score: 250, shards: 10, color: '#e040fb' },
+  boss2: { radius: 40, hp: 110, speed: 68, score: 400, shards: 14, color: '#22d3ee' },
+  boss3: { radius: 52, hp: 170, speed: 46, score: 650, shards: 20, color: '#ff6d00' },
 };
+
+/** The two realms the ember fights through, alternating every five waves. Realm I is the
+ *  ashen field the game opens in; Realm II is the sunken deep, a teal drowned arena where
+ *  shadows arrive faster and shooters crowd the field. */
+export const REALMS = [
+  { name: 'Ashen Expanse', arena: '#0d0d1e', grid: '#191930', edge: '#2c2c55', star: '#cdd2ff' },
+  { name: 'The Sunken Deep', arena: '#06222e', grid: '#0f3d46', edge: '#14606e', star: '#a8e6f0' },
+];
+
+/** The three bosses, one per five-wave cycle: the Void Wisp (wave 5), the Tidekeeper
+ *  (wave 10) and the Ashen Sovereign (wave 15), then the cycle repeats, harder. */
+export const BOSSES = [
+  { kind: 'boss', name: 'THE VOID WISP', banner: 'THE VOID WISP WAKES' },
+  { kind: 'boss2', name: 'THE TIDEKEEPER', banner: 'THE TIDEKEEPER RISES' },
+  { kind: 'boss3', name: 'THE ASHEN SOVEREIGN', banner: 'THE ASHEN SOVEREIGN AWAKENS' },
+];
+
+/** Relics: boss loot, granted in pairs when a boss falls. Each one changes a real rule —
+ *  a revive, a chain zap, a slowing aura, healing from shards, heavier bolts, a doubled
+ *  magnet — and each stays for the rest of the run. */
+export const RELICS = [
+  { id: 'phoenix', name: 'Phoenix Feather', desc: 'Revive once at 1 heart when you would fall' },
+  { id: 'lantern', name: 'Wisp Lantern', desc: 'Shard magnet radius doubled' },
+  { id: 'storm', name: 'Storm Sigil', desc: 'Kills chain-zap a nearby shadow for 3 damage' },
+  { id: 'frost', name: 'Frostbrand Aura', desc: 'Shadows within 170 move 30% slower' },
+  { id: 'bloodmoon', name: 'Bloodmoon Charm', desc: 'Every 15 shards collected restores 1 heart' },
+  { id: 'titan', name: 'Titan Anchor', desc: 'Bolts 50% wider, and heavier' },
+];
+/** Which relic pair each boss drops, in boss order: Void Wisp, Tidekeeper, Ashen Sovereign. */
+export const BOSS_RELICS = [['phoenix', 'lantern'], ['storm', 'frost'], ['bloodmoon', 'titan']];
 
 /** Waves: how many shadows, how fast they arrive, when the boss comes. */
 export const WAVE = {
@@ -61,6 +93,12 @@ export const UPGRADES = [
   { id: 'magnet', name: 'Shard Magnet', desc: '+70% shard pickup radius', max: 3, icon: 'magnet' },
   { id: 'shield', name: 'Ember Ward', desc: '+1 max heart, and heal 1', max: 3, icon: 'shield' },
   { id: 'heal', name: 'Rekindle', desc: 'Restore 2 hearts', max: 99, icon: 'heal' },
+  { id: 'orbit', name: 'Orbiting Ember', desc: '+1 flame orbiting you, burning shadows it touches', max: 3, icon: 'orbit' },
+  { id: 'nova', name: 'Ember Nova', desc: 'A shockwave every 6s, burning all shadows near you', max: 3, icon: 'nova' },
+  { id: 'crit', name: 'Kindled Edge', desc: '+20% chance a bolt deals double damage', max: 3, icon: 'crit' },
+  { id: 'regen', name: 'Slow Burn', desc: 'Regenerate 1 heart every 30s', max: 2, icon: 'regen' },
+  { id: 'swiftbolt', name: 'Swift Bolt', desc: 'Bolts fly 25% faster and farther', max: 3, icon: 'swiftbolt' },
+  { id: 'greed', name: 'Gilded Shards', desc: 'Light shards are worth +5 more', max: 2, icon: 'greed' },
 ];
 
 export const PALETTE = {

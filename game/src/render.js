@@ -2,8 +2,8 @@
 // is scaled to fit the window and centred, the margin filled with the backdrop colour. Everything
 // is canvas-drawn — no images, no fonts loaded, no network — and every animation reads the
 // world's elapsed time, never the wall clock, so a screenshot scene renders the same every time.
-import { ENEMY, FIELD, FONT, PALETTE } from './config.js';
-import { KIND_BOSS, KIND_MINI, KIND_SHOOTER, KIND_SPLITTER, KIND_TANK } from './world.js';
+import { ENEMY, FIELD, FONT, PALETTE, REALMS } from './config.js';
+import { KIND_BOSS, KIND_BOSS2, KIND_BOSS3, KIND_MINI, KIND_SHOOTER, KIND_SPLITTER, KIND_TANK, bossName, isBossKind } from './world.js';
 
 export const SCREEN_TITLE = 'title';
 export const SCREEN_PLAY = 'play';
@@ -61,9 +61,10 @@ export function createRenderer(canvas) {
   }
 
   function drawBackground(state) {
-    context.fillStyle = PALETTE.arena;
+    const realm = REALMS[(state.realm || 1) - 1];
+    context.fillStyle = realm.arena;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
-    context.strokeStyle = PALETTE.grid;
+    context.strokeStyle = realm.grid;
     context.lineWidth = 1;
     context.beginPath();
     for (let x = GRID; x < FIELD.width; x += GRID) {
@@ -79,11 +80,11 @@ export function createRenderer(canvas) {
       const star = state.stars[index];
       const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(state.elapsed * 1.6 + star.phase));
       context.globalAlpha = twinkle;
-      context.fillStyle = '#cdd2ff';
+      context.fillStyle = realm.star;
       context.fillRect(star.x, star.y, star.r, star.r);
     }
     context.globalAlpha = 1;
-    context.strokeStyle = '#2c2c55';
+    context.strokeStyle = realm.edge;
     context.lineWidth = 3;
     context.strokeRect(4, 4, FIELD.width - 8, FIELD.height - 8);
   }
@@ -106,14 +107,86 @@ export function createRenderer(canvas) {
   }
 
   function drawEnemy(state, enemy) {
-    const spec = [ENEMY.chaser, ENEMY.shooter, ENEMY.splitter, ENEMY.mini, ENEMY.tank, ENEMY.boss][enemy.kind];
+    const spec = [ENEMY.chaser, ENEMY.shooter, ENEMY.splitter, ENEMY.mini, ENEMY.tank, ENEMY.boss, ENEMY.boss2, ENEMY.boss3][enemy.kind];
     const x = enemy.x;
     const y = enemy.y;
     const radius = enemy.radius;
     context.save();
     context.shadowColor = spec.color;
     context.shadowBlur = 16;
-    if (enemy.kind === KIND_BOSS) {
+    if (enemy.kind === KIND_BOSS2) {
+      // The Tidekeeper: a teal wave-ringed wisp, its halo spinning fast before a dash.
+      context.fillStyle = '#04222e';
+      context.beginPath();
+      context.arc(x, y, radius, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = spec.color;
+      context.lineWidth = 5;
+      context.stroke();
+      context.save();
+      context.translate(x, y);
+      context.rotate(state.elapsed * 2.2);
+      context.strokeStyle = '#7df3ff';
+      context.lineWidth = 3;
+      context.beginPath();
+      for (let wave = 0; wave < 3; wave += 1) {
+        const angle = (wave / 3) * Math.PI * 2;
+        context.moveTo(Math.cos(angle) * (radius + 2), Math.sin(angle) * (radius + 2));
+        context.quadraticCurveTo(
+          Math.cos(angle + 0.5) * (radius + 22), Math.sin(angle + 0.5) * (radius + 22),
+          Math.cos(angle + 1) * (radius + 2), Math.sin(angle + 1) * (radius + 2),
+        );
+      }
+      context.stroke();
+      context.restore();
+      context.fillStyle = '#b8f6ff';
+      context.beginPath();
+      context.arc(x, y, radius * 0.4, 0, Math.PI * 2);
+      context.fill();
+      const barWidth = 150;
+      const ratio = Math.max(0, enemy.hp / enemy.maxHp);
+      context.shadowBlur = 0;
+      context.fillStyle = '#0a2531';
+      context.fillRect(x - barWidth / 2, y + radius + 12, barWidth, 9);
+      context.fillStyle = spec.color;
+      context.fillRect(x - barWidth / 2, y + radius + 12, barWidth * ratio, 9);
+    } else if (enemy.kind === KIND_BOSS3) {
+      // The Ashen Sovereign: a crowned ember-eater, gold on charred red, enraging as it burns.
+      context.fillStyle = '#2e0d02';
+      context.beginPath();
+      context.arc(x, y, radius, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = spec.color;
+      context.lineWidth = 5;
+      context.stroke();
+      context.fillStyle = '#ffb703';
+      context.beginPath();
+      for (let spike = 0; spike < 5; spike += 1) {
+        const angle = -Math.PI / 2 + (spike / 4) * Math.PI * 0.9;
+        const outer = spike % 2 === 0 ? radius + 18 : radius + 6;
+        const px = x + Math.cos(angle) * outer;
+        const py = y + Math.sin(angle) * outer - 6;
+        if (spike === 0) context.moveTo(px, py);
+        else context.lineTo(px, py);
+      }
+      context.closePath();
+      context.fill();
+      context.fillStyle = '#ff4d00';
+      context.beginPath();
+      context.arc(x, y, radius * 0.42, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = '#ffe9a8';
+      context.beginPath();
+      context.arc(x, y, radius * 0.2, 0, Math.PI * 2);
+      context.fill();
+      const barWidth = 170;
+      const ratio = Math.max(0, enemy.hp / enemy.maxHp);
+      context.shadowBlur = 0;
+      context.fillStyle = '#2e0d02';
+      context.fillRect(x - barWidth / 2, y + radius + 12, barWidth, 9);
+      context.fillStyle = spec.color;
+      context.fillRect(x - barWidth / 2, y + radius + 12, barWidth * ratio, 9);
+    } else if (enemy.kind === KIND_BOSS) {
       // The void wisp: a dark heart ringed in magenta, with a slow rotating halo.
       context.fillStyle = '#2a0a3a';
       context.beginPath();
@@ -122,17 +195,19 @@ export function createRenderer(canvas) {
       context.strokeStyle = spec.color;
       context.lineWidth = 5;
       context.stroke();
+      context.save();
+      context.translate(x, y);
       context.rotate(state.elapsed * 0.7);
       context.strokeStyle = '#ff7ae0';
       context.lineWidth = 3;
       context.beginPath();
       for (let spike = 0; spike < 8; spike += 1) {
         const angle = (spike / 8) * Math.PI * 2;
-        context.moveTo(x + Math.cos(angle) * (radius + 4), y + Math.sin(angle) * (radius + 4));
-        context.lineTo(x + Math.cos(angle) * (radius + 16), y + Math.sin(angle) * (radius + 16));
+        context.moveTo(Math.cos(angle) * (radius + 4), Math.sin(angle) * (radius + 4));
+        context.lineTo(Math.cos(angle) * (radius + 16), Math.sin(angle) * (radius + 16));
       }
       context.stroke();
-      context.rotate(-state.elapsed * 0.7);
+      context.restore();
       context.fillStyle = '#ff9df0';
       context.beginPath();
       context.arc(x, y, radius * 0.42, 0, Math.PI * 2);
@@ -204,7 +279,7 @@ export function createRenderer(canvas) {
     }
     context.restore();
     // A small health bar over hurt enemies.
-    if (enemy.hp < enemy.maxHp && enemy.kind !== KIND_BOSS) {
+    if (enemy.hp < enemy.maxHp && !isBossKind(enemy.kind)) {
       const barWidth = radius * 1.8;
       const ratio = Math.max(0, enemy.hp / enemy.maxHp);
       context.fillStyle = '#1c1030';
@@ -272,6 +347,20 @@ export function createRenderer(canvas) {
     context.arc(player.x, player.y, radius * 7, 0, Math.PI * 2);
     context.fill();
     context.restore();
+    // Orbiting Ember flames: small gold orbs circling the ember.
+    if (player.orbit > 0) {
+      context.save();
+      context.shadowColor = PALETTE.player;
+      context.shadowBlur = 14;
+      context.fillStyle = '#ffab00';
+      for (let orbiter = 0; orbiter < player.orbit; orbiter += 1) {
+        const angle = player.orbitAngle + (orbiter / player.orbit) * Math.PI * 2;
+        context.beginPath();
+        context.arc(player.x + Math.cos(angle) * 72, player.y + Math.sin(angle) * 72, 8, 0, Math.PI * 2);
+        context.fill();
+      }
+      context.restore();
+    }
     context.save();
     // Aim tick toward the mouse.
     const aimAngle = Math.atan2(player.aimY - player.y, player.aimX - player.x);
@@ -351,6 +440,11 @@ export function createRenderer(canvas) {
     text(`SCORE  ${state.score}`, 24, 40, 30, PALETTE.text, 'left', '700');
     text(`BEST  ${ui.best}`, 24, 68, 18, PALETTE.muted, 'left');
     text(`WAVE  ${state.wave}`, FIELD.width / 2, 40, 30, PALETTE.text, 'center', '700');
+    const realm = REALMS[(state.realm || 1) - 1];
+    text(`REALM ${state.realm || 1} · ${realm.name.toUpperCase()}`, 24, 96, 16, PALETTE.muted, 'left', '700');
+    if (state.relics && state.relics.length > 0) {
+      text(`RELICS  ${state.relics.length}/6`, 24, 120, 16, '#7CFC98', 'left', '700');
+    }
     const left = state.phase === 'fighting' ? state.spawnQueue.length + countEnemies(state) : 0;
     text(left > 0 ? `${left} shadows remain` : 'Wave cleared!', FIELD.width / 2, 68, 18, PALETTE.muted, 'center');
     const firstHeart = FIELD.width - 24 - player.maxHp * (HEART_SIZE + HEART_GAP) + HEART_GAP;
@@ -360,24 +454,25 @@ export function createRenderer(canvas) {
     text(`◆ ${state.shardsCollected}`, FIELD.width - 24, 76, 22, PALETTE.shard, 'right', '700');
     const hints = [`M ${ui.muted ? 'unmute' : 'mute'}`, `F auto-fire ${player.autoFire ? 'ON' : 'off'}`, 'P pause'];
     text(hints.join('   ·   '), FIELD.width / 2, FIELD.height - 16, 16, PALETTE.muted, 'center');
-    // The void wisp's health, wide and centred, while it lives: the boss fight reads at a glance.
+    // The boss's health, wide and centred, while it lives: the boss fight reads at a glance.
     const boss = bossEnemy(state);
     if (boss !== null) {
       const barWidth = 360;
       const ratio = Math.max(0, boss.hp / boss.maxHp);
-      text('VOID WISP', FIELD.width / 2, 92, 16, PALETTE.boss, 'center', '700');
+      const bossColor = boss.kind === KIND_BOSS2 ? '#22d3ee' : boss.kind === KIND_BOSS3 ? '#ff6d00' : PALETTE.boss;
+      text(bossName(boss.kind), FIELD.width / 2, 92, 16, bossColor, 'center', '700');
       context.fillStyle = '#1c1030';
       context.fillRect((FIELD.width - barWidth) / 2, 100, barWidth, 10);
-      context.fillStyle = PALETTE.boss;
+      context.fillStyle = bossColor;
       context.fillRect((FIELD.width - barWidth) / 2, 100, barWidth * ratio, 10);
     }
   }
 
-  /** The live boss, or null when no void wisp is on the field. */
+  /** The live boss, or null when no boss is on the field. */
   function bossEnemy(state) {
     for (let index = 0; index < state.enemies.length; index += 1) {
       const enemy = state.enemies[index];
-      if (enemy.active && enemy.kind === KIND_BOSS) return enemy;
+      if (enemy.active && isBossKind(enemy.kind)) return enemy;
     }
     return null;
   }
@@ -419,8 +514,9 @@ export function createRenderer(canvas) {
     text('Keeper of the Last Ember', FIELD.width / 2, 262, 28, PALETTE.text, 'center');
     text('You are the last ember. The shadows are coming for your light.', FIELD.width / 2, 316, 20, PALETTE.muted, 'center');
     text('Move with WASD or arrows  ·  Aim with the mouse  ·  Hold click or Space to shoot', FIELD.width / 2, 352, 20, PALETTE.text, 'center');
-    text('Collect light shards  ·  Choose an upgrade between waves  ·  A void wisp wakes every 5th wave', FIELD.width / 2, 384, 20, PALETTE.text, 'center');
-    text(`BEST  ${ui.best}`, FIELD.width / 2, 428, 22, PALETTE.shard, 'center', '700');
+    text('Collect light shards  ·  Choose an upgrade between waves  ·  Bosses drop relics', FIELD.width / 2, 384, 20, PALETTE.text, 'center');
+    text('3 bosses: Void Wisp · Tidekeeper · Ashen Sovereign  —  2 realms: Ashen Expanse · Sunken Deep', FIELD.width / 2, 414, 18, PALETTE.muted, 'center');
+    text(`BEST  ${ui.best}`, FIELD.width / 2, 448, 22, PALETTE.shard, 'center', '700');
     const blink = 0.55 + 0.45 * Math.sin(state.elapsed * 3.2);
     context.globalAlpha = blink;
     text('Click or press Enter to start', FIELD.width / 2, 500, 26, PALETTE.player, 'center', '700');
@@ -505,6 +601,69 @@ export function createRenderer(canvas) {
       context.bezierCurveTo(cx, cy - 7, cx + 1, cy - 10, cx + 5, cy - 10);
       context.bezierCurveTo(cx + 13, cy - 10, cx + 14, cy + 2, cx, cy + 12);
       context.stroke();
+    } else if (icon === 'orbit') {
+      // A ring with a flame on it: the orbiting ember.
+      context.beginPath();
+      context.arc(cx, cy, 13, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.arc(cx + 13, cy, 5, 0, Math.PI * 2);
+      context.fill();
+    } else if (icon === 'nova') {
+      // A burst: a core with rays flying out.
+      context.beginPath();
+      context.arc(cx, cy, 5, 0, Math.PI * 2);
+      context.fill();
+      for (let ray = 0; ray < 8; ray += 1) {
+        const angle = (ray / 8) * Math.PI * 2;
+        context.beginPath();
+        context.moveTo(cx + Math.cos(angle) * 8, cy + Math.sin(angle) * 8);
+        context.lineTo(cx + Math.cos(angle) * 16, cy + Math.sin(angle) * 16);
+        context.stroke();
+      }
+    } else if (icon === 'crit') {
+      // Crossed blades: the kindled edge.
+      context.beginPath();
+      context.moveTo(cx - 12, cy - 12);
+      context.lineTo(cx + 12, cy + 12);
+      context.moveTo(cx + 12, cy - 12);
+      context.lineTo(cx - 12, cy + 12);
+      context.stroke();
+    } else if (icon === 'regen') {
+      // A heart with a rising flame: slow burn, healing over time.
+      context.beginPath();
+      context.moveTo(cx, cy + 12);
+      context.bezierCurveTo(cx - 14, cy + 2, cx - 13, cy - 10, cx - 5, cy - 10);
+      context.bezierCurveTo(cx - 1, cy - 10, cx, cy - 7, cx, cy - 5);
+      context.bezierCurveTo(cx, cy - 7, cx + 1, cy - 10, cx + 5, cy - 10);
+      context.bezierCurveTo(cx + 13, cy - 10, cx + 14, cy + 2, cx, cy + 12);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(cx, cy - 16);
+      context.lineTo(cx + 4, cy - 8);
+      context.lineTo(cx, cy - 8);
+      context.lineTo(cx + 3, cy - 2);
+      context.lineTo(cx - 3, cy - 8);
+      context.closePath();
+      context.fill();
+    } else if (icon === 'swiftbolt') {
+      // A long bolt with a tail: swift and far.
+      context.beginPath();
+      context.moveTo(cx + 14, cy - 14);
+      context.lineTo(cx - 2, cy + 2);
+      context.lineTo(cx + 4, cy + 2);
+      context.lineTo(cx - 10, cy + 14);
+      context.lineTo(cx + 2, cy - 2);
+      context.lineTo(cx - 4, cy - 2);
+      context.closePath();
+      context.fill();
+    } else if (icon === 'greed') {
+      // A diamond shard, gilded.
+      context.save();
+      context.translate(cx, cy);
+      context.rotate(Math.PI / 4);
+      context.fillRect(-8, -8, 16, 16);
+      context.restore();
     } else {
       // Rekindle: a plus, the ember relit.
       context.beginPath();
